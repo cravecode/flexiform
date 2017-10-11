@@ -86,39 +86,50 @@ class FlexiformBuilder implements FlexiformBuilderInterface {
    * @param array $form_errors Existing form errors. (I.e.: form_get_errors()).
    */
   protected function updateFormErrorMessages($form_errors, $form, $form_state) {
-    // Correct validation error message element references.
-    $form_errors = $this->fixFormErrorElementPaths($form_errors, $form, $form_state);
 
-    // Order $form_errors by the element weight.
-    usort($form_errors, function($a, $b){
-      return ($a['weight'] == $b['weight']
-        ? 0 :
-        ($a['weight'] > $b['weight']
-          ? 1
-          : -1));
-    });
+    // If there are no errors to adjust, leave.
+    if(empty($form_errors) && empty($_SESSION['messages']['error'])) {
+      return;
+    }
 
     // Get messages already saved to session to remove any potential duplicates.
     // Pass by reference so we can manipulate them directly.
     $session_messages = &$_SESSION['messages']['error'];
 
-    // Clear existing form errors so we can rebuild them.
-    form_clear_error();
+    // If for any reason we don't have a proper array of errors, leave.
+    if(!empty($form_errors)) {
+      // Correct validation error message element references.
+      $form_errors = $this->fixFormErrorElementPaths($form_errors, $form, $form_state);
 
-    // Loop over our messages that have been re-mapped to their respective
-    // form elements and remove any potential duplicates.
-    foreach($form_errors as $err_msg) {
-      // Has this error message been previously logged to session messages?
-      $duplicate_msg_index = array_search($err_msg['message'], $session_messages, TRUE);
-      if($duplicate_msg_index !== FALSE) {
-        // Found a duplicate, remove it from the message saved in session.
-        unset($session_messages[$duplicate_msg_index]);
+      // Order $form_errors by the element weight.
+      usort($form_errors, function($a, $b){
+        return ($a['weight'] == $b['weight']
+          ? 0 :
+          ($a['weight'] > $b['weight']
+            ? 1
+            : -1));
+      });
+
+      // Clear existing form errors so we can rebuild them.
+      form_clear_error();
+
+      // Loop over our messages that have been re-mapped to their respective
+      // form elements and remove any potential duplicates.
+      foreach($form_errors as $err_msg) {
+        // Has this error message been previously logged to session messages?
+        $duplicate_msg_index = array_search($err_msg['message'], $session_messages, TRUE);
+        if($duplicate_msg_index !== FALSE) {
+          // Found a duplicate, remove it from the message saved in session.
+          unset($session_messages[$duplicate_msg_index]);
+        }
+
+        // Set our new version of the message that is
+        // correctly mapped to a form element.
+        form_set_error($err_msg['path'], $err_msg['message']);
       }
 
-      // Set our new version of the message that is
-      // correctly mapped to a form element.
-      form_set_error($err_msg['path'], $err_msg['message']);
     }
+
 
     // Because we have potentially the messages index sequence, re-key the
     // array of messages in session.

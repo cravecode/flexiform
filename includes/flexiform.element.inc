@@ -363,6 +363,11 @@ class FlexiformElement implements FlexiformElementInterface {
       return TRUE;
     }
 
+    // Also try turning things like "base_entity][title" into "node:title"
+    if($field_name == str_ireplace($this->entity_namespace . "][", $this->entity_type . ":", $form_error_path)) {
+      return TRUE;
+    }
+
     return FALSE;
   }
 
