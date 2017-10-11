@@ -455,7 +455,7 @@ class FlexiformElementField extends FlexiformElement implements FlexiformElement
    * @see field_attach_form_validate()
    */
   public function formValidate($form, &$form_state, $entity, $language = LANGUAGE_NONE) {
-    $entity = clone $entity;
+    //$entity = clone $entity;
     $form_elements = $this->extractFormElements($form);
 
     $this->fieldInvokeDefault('extract_form_values', $entity, $form_elements, $form_state);
@@ -466,12 +466,6 @@ class FlexiformElementField extends FlexiformElement implements FlexiformElement
 
       $this->fieldInvokeDefault('validate', $entity, $errors, $null);
       $this->fieldInvoke('validate', $entity, $errors, $null);
-
-      // Let other modules validate the entity.
-      foreach (module_implements('field_attach_validate') as $module) {
-        $function = $module . '_field_attach_validate';
-        $function($entity_type, $entity, $errors);
-      }
 
       if ($errors) {
         throw new FieldValidationException($errors);

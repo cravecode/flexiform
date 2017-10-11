@@ -168,7 +168,30 @@ class FlexiformBuilderFlexiform extends FlexiformBuilder {
       $element->formValidate($form, $form_state, $entity);
     }
 
+    $errors = array();
+    // Validate the form in the context of each entity.
+    foreach($this->flexiform->entities as $name_space => $entity_settings) {
+
+      // Let other modules validate the entity.
+      foreach (module_implements('field_attach_validate') as $module) {
+        $function = $module . '_field_attach_validate';
+        $entity = $this->getFormEntity($name_space, $flexiform_state);
+        if($entity) {
+          $function($entity_settings['entity_type'], $entity, $errors);
+          // Because Field Validate uses form_set_error we don't actually
+          // end up doing anything with "$errors".
+          // In my tests, it works without manually writing them to the page.
+        }
+      }
+    }
+
     $this->invoke($form, $form_state, 'validate');
+
+    // Grab all errors created by form_set_error and
+    //  * sort them based on element position
+    //  * correct any incorrectly set element paths for errors.
+    //  * Remove any duplicates messages
+    $this->updateFormErrorMessages(form_get_errors(), $form, $form_state);
   }
 
   /**

@@ -132,6 +132,9 @@ class FlexiformElementEntityProperty extends FlexiformElement {
     if (!$this->wrapper($entity)->get($this->property)->validate($value)) {
       form_error($form[$this->element_namespace], t('Invalid value given for !label', array('!label' => $this->label())));
     }
+    else {
+      $this->wrapper($entity)->get($this->property)->set($value);
+    }
   }
 
   /**
