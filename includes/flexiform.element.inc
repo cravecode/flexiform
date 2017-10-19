@@ -313,6 +313,65 @@ class FlexiformElement implements FlexiformElementInterface {
   }
 
   /**
+   * Looks through the form errors and attempts to match a error to this element.
+   * This is accomplished by looking at the element path used in the form error.
+   *
+   * Example form error element path search and match to:
+   * Finds:
+   *   "field_sample][0][und][value"
+   * When it should have been:
+   *   "base_entity][field_sample][0][und][value"
+   *
+   * @return null|string
+   */
+  public function isErrorElementPathMatch($form_error_path) {
+
+    // Get the field/property name.
+    $field_name = str_ireplace(
+      'field:', '', str_ireplace(
+      'property:', '', $this->name()));
+
+    // Wrap in brackets
+    $field_name = "$field_name";
+
+    // We'll search the error element path for the field name and either the entity type or entity namespace.
+    // Example:
+    //   Search:  "base_entity][field_sample][und][0][value"
+    //   For:     "field_sample" and either "base_entity" or "node".
+    if (stripos($form_error_path, "[$field_name]") !== FALSE
+      && ((stripos($form_error_path, $this->getEntityType() . "]") !== FALSE)
+        || (stripos($form_error_path, $this->getEntityNamespace() . "]") !== FALSE))) {
+      return TRUE;
+    }
+
+    // Try a loose match by checking for the field_name at the beginning.
+    // I.e.:
+    //   Search: "field_name][und][0][value"
+    //   For:    "field_name]"
+    if(stripos($form_error_path, "$field_name]") === 0) {
+      return TRUE;
+    }
+
+    // If we still don't have a match, try matching on just
+    // the field/property name wrapped in brackets.
+    // I.e.:
+    //    Search: "property_name"
+    //    For:    "property_name"
+    // NOTE:  This is different than the search attempt above.
+    //        We're wrapping the whole thing in brackets here.
+    if ($field_name == "$form_error_path") {
+      return TRUE;
+    }
+
+    // Also try turning things like "base_entity][title" into "node:title"
+    if($field_name == str_ireplace($this->entity_namespace . "][", $this->entity_type . ":", $form_error_path)) {
+      return TRUE;
+    }
+
+    return FALSE;
+  }
+
+  /**
    * Validate the form element.
    */
   public function formValidate($form, &$form_state, $entity) { }

@@ -158,17 +158,71 @@ class FlexiformBuilderFlexiform extends FlexiformBuilder {
     // Get the flexiform state for this particular form.
     $flexiform_state = &$this->getFlexiformState($form, $form_state);
 
+
     foreach (element_children($form) as $element_namespace) {
       if (empty($form[$element_namespace]['#flexiform_element'])) {
         continue;
       }
 
       $element = $form[$element_namespace]['#flexiform_element'];
-      $entity = $this->getFormEntity($element->getEntityNamespace(), $flexiform_state);
-      $element->formValidate($form, $form_state, $entity);
+      $element->formValidate($form, $form_state, $this->entityValidationCache($element->getEntityNamespace(), $flexiform_state));
+    }
+
+    $errors = array();
+    // Validate the form in the context of each entity.
+    foreach($this->flexiform->entities as $name_space => $entity_settings) {
+
+      // Let other modules validate the entity.
+      foreach (module_implements('field_attach_validate') as $module) {
+        $function = $module . '_field_attach_validate';
+        $entity = $this->entityValidationCache($name_space, $flexiform_state);
+        if($entity) {
+          $function($entity_settings['entity_type'], $entity, $errors);
+          // Because Field Validate uses form_set_error we don't actually
+          // end up doing anything with "$errors".
+          // In my tests, it works without manually writing them to the page.
+        }
+      }
     }
 
     $this->invoke($form, $form_state, 'validate');
+
+    // Grab all errors created by form_set_error and
+    //  * sort them based on element position
+    //  * correct any incorrectly set element paths for errors.
+    //  * Remove any duplicates messages
+    $this->updateFormErrorMessages(form_get_errors(), $form, $form_state);
+
+    $this->invoke($form, $form_state, 'validate');
+  }
+
+  /**
+   * Grabs and stashes form entities via a static cache.
+   * This is intended to be performed within the scope of the form validation process.
+   * Each entity retrieval from the FlexiformBuilder is cloned to avoid
+   * entity changes from leaking outside of the validation processes.
+   *
+   * @param string $entity_namespace
+   * @param array $flexiform_state
+   * @return bool|\Entity|\stdClass
+   */
+  private function entityValidationCache($entity_namespace, $flexiform_state) {
+    static $entity_cache = array();
+
+    // Setup a entity cache so that validation steps are carried across multiple
+    // validation rules without globally altering the entities outside the scope of validation.
+    if(key_exists($entity_namespace, $entity_cache)) {
+      $entity = $entity_cache[$entity_namespace];
+    }
+    else {
+      // We don't have a cached version of the entity yet, grab it and stash to cache.
+      $entity = $this->getFormEntity($entity_namespace, $flexiform_state);
+      // Clone the entity so we're not altering the entity outside of the validation process.
+      $entity = clone $entity;
+      $entity_cache[$entity_namespace] = $entity;
+    }
+
+    return $entity;
   }
 
   /**
